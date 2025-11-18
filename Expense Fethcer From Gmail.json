@@ -1,0 +1,478 @@
+{
+  "name": "Expense Fethcer From Gmail",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1680,
+        352
+      ],
+      "id": "09e6529d-b33b-4a46-b525-a4e1c1266f8a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Read {{ $json.snippet }} extract the Heads of Accounts with Amounts from it. Present the Head of Accounts in Accounting Manner. The sendersname and email is {{ $json.From }}.\nPrepare a one word description from your own knowledge for each entry.\n",
+        "options": {
+          "systemMessage": "Role:\nYou are an AI agent responsible for reading incoming emails and extracting financial spending information. Your job is to accurately identify all spending-related data and organize it clearly by category (headwise) along with corresponding amounts. You will then send the extracted details to a connected Google Sheet only when valid spending data exists.\n\nInstructions:\n\nRead the full email content.\n\nExtract all spending information, including:\n\nCategory/Head of spending (e.g., Travel, Food, Supplies, Utilities, Marketing, etc.)\n\nAmount spent\n\nOptional metadata (description, date)\n\nFormat the extracted data as structured entries:\n\nCategory\n\nAmount\n\nDescription \n\nDate (optional)\n\nSender Email\n\nThe sender’s email address must be included in each row sent to the Google Sheet.\n\nIf no spending data is detected, output nothing and append nothing to the Google Sheet.\n\nDo not create a placeholder row.\n\nDo not output “no spending detected.”\n\nSimply return an empty list.\n\nEnsure all currency values are extracted accurately, even if written in words or symbols.\n\nIgnore irrelevant content (greetings, signatures, promotions).\n\nOutput the data in a clean, structured format ready for insertion into Google Sheets."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -336,
+        352
+      ],
+      "id": "c743b3ba-babd-4d90-b0eb-c420c6fc546a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        576
+      ],
+      "id": "6ba5605b-93be-4793-a275-0e56c3dbff72",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2KJm1DNlBualldhc",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {
+          "q": "is:unread subject:(expense OR expenses OR expenditure OR expenditures)",
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1456,
+        352
+      ],
+      "id": "7514e5c9-119a-4c75-8c0d-2edb9ca53512",
+      "name": "Gmail",
+      "webhookId": "4f9c4fe4-aadb-4b6e-9350-6096e609610e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FMsBLCzzsprLSs4X",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio",
+          "mode": "list",
+          "cachedResultName": "Expenses AI",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 874719411,
+          "mode": "list",
+          "cachedResultName": "email-ids",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit#gid=874719411"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1232,
+        352
+      ],
+      "id": "8fe7ff23-3727-4d4d-a6c4-95284bc552d6",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TH7bA8mlKQr1qv6I",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. GET NEW GMAIL MESSAGE ID FROM INPUT 0\nconst gmailInput = $input.all(0) || [];\nif (gmailInput.length === 0) {\n  return [{ json: { exists: false, incomingId: null, error: \"No Gmail input\" } }];\n}\n\nconst gmailData = gmailInput[0].json;\n\n// Replace \"id\" with your Gmail field name (id, messageId, etc.)\nconst incomingId = String($('Gmail').first().json.id|| \"\").trim().toLowerCase();\n\n\n// 2. GET GOOGLE SHEET ROWS FROM INPUT 1\nconst sheetInput = $input.all(1) || [];\nconst columnName = \"Email IDs\"; // EXACT column header\n\n// 3. CHECK IF ID EXISTS IN SHEET\nlet exists = false;\nif (sheetInput.length > 0) {\n  exists = sheetInput.some(row => {\n    const sheetId = String(row.json[columnName] || \"\").trim().toLowerCase();\n    return sheetId === incomingId;\n  });\n}\n\n// 4. RETURN RESULT\nreturn [\n  {\n    json: {\n      incomingId,\n      exists\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        352
+      ],
+      "id": "1575f8a8-2b71-4caf-a78c-ec721e43de2e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "47448347-c0a2-4485-94b1-8657bb4b9b72",
+              "leftValue": "={{ $json.exists }}",
+              "rightValue": "True",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -784,
+        352
+      ],
+      "id": "e5635f11-09d4-44dd-9d92-a3d57c8b97a3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio",
+          "mode": "list",
+          "cachedResultName": "Expenses AI",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "From": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('From', ``, 'string') }}",
+            "Description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Description', ``, 'string') }}",
+            "Amount": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Amount', ``, 'string') }}",
+            "Date": "={{ $('Schedule Trigger').item.json['Readable date'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "From",
+              "displayName": "From",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -144,
+        576
+      ],
+      "id": "73198043-05c6-4c8e-a57d-73554b010e54",
+      "name": "Append Record",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TH7bA8mlKQr1qv6I",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {
+          "q": "is:unread subject:(expense OR expenses OR expenditure OR expenditures)",
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -560,
+        352
+      ],
+      "id": "7be0fe5c-7029-4605-a167-37083cd8eddf",
+      "name": "Gmail Later",
+      "webhookId": "4f9c4fe4-aadb-4b6e-9350-6096e609610e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FMsBLCzzsprLSs4X",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio",
+          "mode": "list",
+          "cachedResultName": "Expenses AI",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 874719411,
+          "mode": "list",
+          "cachedResultName": "email-ids",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r0Jn099oFjzp6Sgi8TW41Zp1-1Cp4AXnW34n337vaio/edit#gid=874719411"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email IDs": "={{ $('Gmail Later').item.json.id }}"
+          },
+          "matchingColumns": [
+            "Email IDs"
+          ],
+          "schema": [
+            {
+              "id": "Email IDs",
+              "displayName": "Email IDs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        16,
+        352
+      ],
+      "id": "e4f6bf11-7013-4dd9-8bf8-2df4d6bc7f71",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TH7bA8mlKQr1qv6I",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## This part of the flow reads gmail and google sheet and gets records from them\n",
+        "height": 560,
+        "width": 1120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1744,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "890bbb2a-0724-4d81-957a-f4974fa1be92",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## This Part of the flow appends records in the google sheet ",
+        "height": 560,
+        "width": 816,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -576,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "00d2635c-0fef-45cc-a951-67beb2b031c1",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Gmail Later",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Record": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Later": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "15051a22-9157-47f3-afd3-04562cf04567",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "646822a030dad93555c9802f2d54e8114b20c1aa75d8f0a4f1ea3b48e3026a52"
+  },
+  "id": "bWl55IDMcaIxg5YC",
+  "tags": []
+}
