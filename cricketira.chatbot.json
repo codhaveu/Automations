@@ -1,0 +1,197 @@
+{
+  "name": "AI Agent workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "options": {}
+      },
+      "id": "56f75952-003e-4c6f-9d1e-888d8d52ec43",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        2656,
+        1424
+      ],
+      "webhookId": "f77a6ffa-dd42-45a9-b661-6697d2522700"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User question: {{ $json.chatInput }}\n\nWebsite content:\n{{ $json.data }}\n\nSource URL: {{ $json.sourcePageUrl }}",
+        "options": {
+          "systemMessage": "You are a helpful website assistant that answers questions based on the scraped website content provided to you.\n\nCRITICAL: Always respond in the SAME LANGUAGE as the user's question. If the user asks in Spanish, respond in Spanish. If they ask in French, respond in French. Match the user's language exactly.\n\nYour task:\n\nRead the website content provided in the user message.\n\nPrioritize answering based on the information from the website content. However, if the website content does not contain a complete or clear answer, use your own knowledge and reasoning to provide a helpful, accurate response. Make it clear when information comes from your own understanding rather than the website.\n\nIf the answer is not mentioned at all in the provided content and you cannot infer it reasonably, say “I couldn’t find that information on the website, but here’s what I know:” and then answer using your general knowledge.\n\nCRITICAL: Look for specific page URLs or links within the scraped content that relate to your answer.\n\nALWAYS cite the MOST SPECIFIC URL related to the answer (e.g., a blog post URL, article URL, or product page URL).\n\nIf you find a specific page URL in the content related to your answer, use that URL instead of the homepage.\n\nIf no specific URL is found in the content, use the Source URL provided.\n\nIMPORTANT: Format URLs as clickable Markdown links using this format: [Link Text](URL)\n\nFormat:\nProvide clear, concise answers and cite the most relevant/specific source URL at the end as a clickable link.\n\nExample citation formats:\n\nSource: Read more about cricket ball weight\n\nLearn more: Product specifications\n\nReference: Full article"
+        }
+      },
+      "id": "bf8eddaa-813a-4a95-a8ee-64ae801a0863",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3328,
+        1424
+      ]
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 15
+      },
+      "id": "453fad48-928e-409c-8113-981d6587f073",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3472,
+        1648
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3344,
+        1648
+      ],
+      "id": "340c6a7c-aef4-44b1-a36a-5dc10242776d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2KJm1DNlBualldhc",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "websiteUrl",
+              "value": "<__PLACEHOLDER_VALUE__Your website URL to scrape (e.g., https://example.com)__>",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "sourcePageUrl",
+              "value": "<__PLACEHOLDER_VALUE__Source page URL for citations__>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6c82693a-391e-4040-b0bb-2b4a0ec1da04",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://cricketira.com/\n\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "8503d8e7-b6ae-4b5c-a1e2-6cda825082ef",
+      "name": "Scrape Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3104,
+        1344
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Scrape Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Website": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v0",
+    "availableInMCP": false
+  },
+  "versionId": "a4ae436f-ec17-4c4e-8c02-988ee79d52f2",
+  "meta": {
+    "templateId": "ready-to-run-ai-workflow-v3",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "646822a030dad93555c9802f2d54e8114b20c1aa75d8f0a4f1ea3b48e3026a52"
+  },
+  "id": "33GYNatbDUUEcDXa",
+  "tags": []
+}
